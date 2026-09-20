@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NewsLens — Personalized News Recommendation</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Merriweather:wght@700;900&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter','sans-serif'], serif: ['Merriweather','serif'] }
+      }
+    }
+  }
+</script>
+<style>
+  .line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .line-clamp-3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .scrollbar-hide::-webkit-scrollbar{display:none}.scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
+  .glass{backdrop-filter: blur(12px); background: rgba(255,255,255,0.85)}
+</style>
+</head>
+<body class="bg-[#f8f7f5] text-zinc-900 font-sans">
+<!-- Top Nav -->
+<header class="sticky top-0 z-40 glass border-b border-zinc-200">
+  <div class="max-w-[1280px] mx-auto px-4 lg:px-6 h-[64px] flex items-center justify-between gap-4">
+    <div class="flex items-center gap-8">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-zinc-900 text-white flex items-center justify-center text-[16px]"><i class="fa-solid fa-newspaper"></i></div>
+        <span class="font-extrabold text-[20px] tracking-tight">NewsLens</span>
+        <span class="hidden md:inline text-xs font-semibold bg-zinc-900 text-white px-2 py-0.5 rounded-full">AI POWERED</span>
+      </div>
+      <nav class="hidden lg:flex items-center gap-1 text-sm font-medium">
+        <button data-tab="foryou" class="nav-tab px-3 py-2 rounded-full bg-zinc-900 text-white">For You</button>
+        <button data-tab="india" class="nav-tab px-3 py-2 rounded-full hover:bg-zinc-100 relative"><span class="w-2 h-2 bg-red-500 rounded-full inline-block animate-pulse mr-1"></span> India Live <span class="ml-1 text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded">LIVE</span></button>
+        <button data-tab="explore" class="nav-tab px-3 py-2 rounded-full hover:bg-zinc-100">Explore</button>
+        <button data-tab="trending" class="nav-tab px-3 py-2 rounded-full hover:bg-zinc-100">Trending</button>
+        <button data-tab="bookmarks" class="nav-tab px-3 py-2 rounded-full hover:bg-zinc-100"><i class="fa-regular fa-bookmark mr-1"></i> Bookmarks <span id="bookmarkCount" class="ml-1 bg-amber-400 text-zinc-900 text-xs px-1.5 py-0.5 rounded-full hidden">0</span></button>
+      </nav>
+    </div>
+    <div class="flex items-center gap-2 flex-1 max-w-md mx-2 hidden md:flex">
+      <div class="relative w-full">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+        <input id="searchInput" placeholder="Search news, topics, sources..." class="w-full pl-9 pr-4 py-2.5 rounded-full bg-zinc-100 border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm">
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="personalizeBtn" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-zinc-200 text-sm font-semibold hover:bg-zinc-50 whitespace-nowrap"><i class="fa-solid fa-sliders"></i> Personalize</button>
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">A</div>
+    </div>
+  </div>
+  <!-- mobile nav -->
+  <div class="lg:hidden border-t border-zinc-200 bg-white px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide">
+    <button data-tab="foryou" class="nav-tab-mobile whitespace-nowrap px-4 py-1.5 rounded-full bg-zinc-900 text-white text-sm font-medium">For You</button>
+    <button data-tab="india" class="nav-tab-mobile whitespace-nowrap px-4 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-sm font-bold">● India Live</button>
+    <button data-tab="explore" class="nav-tab-mobile whitespace-nowrap px-4 py-1.5 rounded-full bg-zinc-100 text-sm font-medium">Explore</button>
+    <button data-tab="trending" class="nav-tab-mobile whitespace-nowrap px-4 py-1.5 rounded-full bg-zinc-100 text-sm font-medium">Trending</button>
+    <button data-tab="bookmarks" class="nav-tab-mobile whitespace-nowrap px-4 py-1.5 rounded-full bg-zinc-100 text-sm font-medium">Bookmarks</button>
+    <div class="relative flex-1 min-w-[140px]">
+      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
+      <input id="searchInputMobile" placeholder="Search..." class="w-full pl-8 pr-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 text-sm focus:outline-none">
+    </div>
+  </div>
+</header>
+
+<!-- Category chips -->
+<div class="max-w-[1280px] mx-auto px-4 lg:px-6 mt-4">
+  <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1" id="categoryChips">
+    <button data-cat="All" class="chip whitespace-nowrap px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-medium">All</button>
+    <!-- injected -->
+  </div>
+</div>
+
+<!-- Personalize banner -->
+<div id="insightBanner" class="max-w-[1280px] mx-auto px-4 lg:px-6 mt-4">
+  <div class="rounded-2xl bg-gradient-to-r from-zinc-900 to-zinc-800 text-white p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <div>
+        <div class="font-semibold">Your feed is personalized</div>
+        <div class="text-sm text-zinc-300" id="bannerText">Select interests and interact with articles — our AI learns what you love in real-time.</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <div id="accuracyBadge" class="hidden items-center gap-2 bg-white text-zinc-900 px-3 py-1.5 rounded-full text-sm font-semibold"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> <span id="accuracyText">0 preferences set</span></div>
+      <button id="editPrefsBtn" class="px-4 py-2 rounded-full bg-white text-zinc-900 text-sm font-semibold">Edit interests</button>
+    </div>
+  </div>
+</div>
+<!-- India Live bar (shown only on India tab) -->
+<div id="indiaBar" class="hidden max-w-[1280px] mx-auto px-4 lg:px-6 mt-4">
+  <div class="rounded-2xl bg-gradient-to-r from-orange-500 via-white to-green-600 p-[1px]">
+    <div class="rounded-[15px] bg-white px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <span class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+        <span class="font-black tracking-tight">INDIA LIVE</span>
+        <span class="text-xs font-semibold bg-green-600 text-white px-2 py-1 rounded-full">RSS • Real-time</span>
+        <span id="indiaUpdated" class="text-xs text-zinc-500 hidden sm:inline">—</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-zinc-500" id="indiaCount">—</span>
+        <button id="refreshIndiaBtn" class="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold hover:bg-black"><i class="fa-solid fa-rotate mr-1"></i> Refresh</button>
+        <a href="https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" class="px-3 py-2 rounded-full border border-zinc-200 text-sm font-semibold">Source: Google News India</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Layout -->
+<div class="max-w-[1280px] mx-auto px-4 lg:px-6 mt-6 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 pb-10">
+  <!-- Left -->
+  <div>
+    <!-- Tabs header -->
+    <div class="flex items-center justify-between mb-4">
+      <h2 id="feedTitle" class="font-serif font-black text-[24px] md:text-[28px] leading-none">For you</h2>
+      <div class="flex items-center gap-2">
+        <span id="resultCount" class="text-sm text-zinc-500 hidden md:inline"></span>
+        <select id="sortSelect" class="text-sm border border-zinc-200 rounded-full px-3 py-1.5 bg-white">
+          <option value="recommended">Recommended</option>
+          <option value="latest">Latest</option>
+          <option value="popular">Popular</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- For You explanation -->
+    <div id="forYouInfo" class="mb-4 flex items-center gap-2 text-xs font-medium text-zinc-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-2 w-fit">
+      <i class="fa-solid fa-bolt text-amber-500"></i> AI ranked • <span id="forYouReason">based on your interests</span>
+    </div>
+
+    <!-- Articles Grid -->
+    <div id="articlesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- skeleton -->
+    </div>
+    <div id="emptyState" class="hidden text-center py-16 bg-white rounded-2xl border border-zinc-200">
+      <div class="w-16 h-16 mx-auto rounded-2xl bg-zinc-100 flex items-center justify-center text-2xl mb-3"><i class="fa-regular fa-newspaper"></i></div>
+      <div class="font-semibold">No articles found</div>
+      <div class="text-sm text-zinc-500">Try adjusting filters or search</div>
+    </div>
+  </div>
+
+  <!-- Right Sidebar -->
+  <div class="space-y-4">
+    <!-- Preferences card -->
+    <div class="bg-white rounded-2xl border border-zinc-200 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold">Your Interests</h3>
+        <button id="manageInterestsBtn" class="text-sm font-semibold text-violet-600 hover:underline">Manage</button>
+      </div>
+      <div id="interestTags" class="flex flex-wrap gap-2">
+        <span class="text-sm text-zinc-500">No interests selected — tap Manage</span>
+      </div>
+      <div class="mt-4 grid grid-cols-3 gap-3 text-center border-t border-zinc-100 pt-4">
+        <div><div id="statLiked" class="font-bold text-lg">0</div><div class="text-xs text-zinc-500">Liked</div></div>
+        <div><div id="statBookmarked" class="font-bold text-lg">0</div><div class="text-xs text-zinc-500">Saved</div></div>
+        <div><div id="statRead" class="font-bold text-lg">0</div><div class="text-xs text-zinc-500">Read</div></div>
+      </div>
+      <button id="clearHistoryBtn" class="mt-3 w-full text-xs text-zinc-500 hover:text-zinc-900">Clear reading history</button>
+    </div>
+
+    <!-- Trending -->
+    <div class="bg-white rounded-2xl border border-zinc-200 p-5">
+      <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-fire text-orange-500"></i> Trending Now</h3>
+      <div id="trendingList" class="mt-3 space-y-3">
+        <!-- injected -->
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl p-5 text-white">
+      <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-microchip"></i> How recommendations work</h3>
+      <ul class="mt-3 space-y-2.5 text-sm text-violet-100">
+        <li class="flex gap-2"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs flex-shrink-0">1</span> TF-IDF + cosine similarity on article content</li>
+        <li class="flex gap-2"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs flex-shrink-0">2</span> Category preference weighting</li>
+        <li class="flex gap-2"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs flex-shrink-0">3</span> Recency & popularity boosting</li>
+        <li class="flex gap-2"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs flex-shrink-0">4</span> Real-time learning from likes & reads</li>
+      </ul>
+      <div class="mt-4 bg-white/10 rounded-xl p-3 text-xs">Score = 0.5× similarity + 0.25× category + 0.15× recency + 0.10× popularity</div>
+    </div>
+  </div>
+</div>
+
+<!-- Preference Modal -->
+<div id="prefModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/50" id="modalBackdrop"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="bg-white rounded-[24px] max-w-[560px] w-full p-6 md:p-7 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h3 class="font-serif font-black text-2xl">Personalize your feed</h3>
+          <p class="text-sm text-zinc-500 mt-1">Choose topics you love — you can change anytime.</p>
+        </div>
+        <button id="closeModal" class="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="prefGrid" class="grid grid-cols-2 gap-3 mt-6">
+        <!-- injected -->
+      </div>
+      <div class="mt-6 flex gap-3">
+        <button id="savePrefs" class="flex-1 py-3 rounded-full bg-zinc-900 text-white font-semibold">Save & Refresh Feed</button>
+        <button id="skipPrefs" class="px-6 py-3 rounded-full bg-zinc-100 font-semibold">Skip</button>
+      </div>
+      <div class="mt-3 text-xs text-zinc-400 text-center">We use content-based filtering — no collaborative data required.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Article Drawer -->
+<div id="drawer" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" id="drawerBackdrop"></div>
+  <div class="absolute right-0 top-0 h-full w-full max-w-[680px] bg-white shadow-2xl overflow-y-auto">
+    <div id="drawerContent"></div>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 text-white px-4 py-2.5 rounded-full text-sm font-medium shadow-xl hidden z-50"></div>
+
+<script>
+const USER_ID = localStorage.getItem('news_user_id') || (()=>{const id='user_'+Math.random().toString(36).slice(2,9); localStorage.setItem('news_user_id',id); return id})();
+let categories = [];
+let selectedPrefs = new Set(JSON.parse(localStorage.getItem('prefs')||'[]'));
+let currentTab = 'foryou';
+let currentCategory = 'All';
+let currentSearch = '';
+let currentSort = 'recommended';
+let userState = {liked:[], bookmarked:[], history:[], preferences:{}};
+let allArticles = [];
+
+const chipContainer = document.getElementById('categoryChips');
+const articlesGrid = document.getElementById('articlesGrid');
+const trendingList = document.getElementById('trendingList');
+const prefGrid = document.getElementById('prefGrid');
+const searchInput = document.getElementById('searchInput');
+const searchInputMobile = document.getElementById('searchInputMobile');
+
+const catIcons = {
+  Technology:'fa-microchip', Sports:'fa-futbol', Business:'fa-chart-line',
+  Science:'fa-atom', Health:'fa-heart-pulse', Politics:'fa-landmark', Entertainment:'fa-film'
+};
+const catColors = {
+  Technology:'bg-sky-100 text-sky-700', Sports:'bg-emerald-100 text-emerald-700', Business:'bg-zinc-900 text-white',
+  Science:'bg-violet-100 text-violet-700', Health:'bg-rose-100 text-rose-700', Politics:'bg-amber-100 text-amber-700', Entertainment:'bg-fuchsia-100 text-fuchsia-700'
+};
+
+async function fetchCategories(){
+  const res = await fetch('/api/categories'); const cats = await res.json();
+  categories = cats.filter(c=>c!=='All');
+  // chips
+  categories.forEach(c=>{
+    const btn = document.createElement('button');
+    btn.className='chip whitespace-nowrap px-4 py-2 rounded-full bg-white border border-zinc-200 text-sm font-medium hover:bg-zinc-50';
+    btn.dataset.cat=c; btn.innerHTML=`<i class="fa-solid ${catIcons[c]||'fa-tag'} mr-1.5"></i>${c}`;
+    btn.onclick=()=> selectCategory(c, btn);
+    chipContainer.appendChild(btn);
+  });
+  // pref grid
+  const catDesc = {Technology:'AI, Gadgets, Startups', Sports:'Scores & highlights', Business:'Markets & companies', Science:'Space & discoveries', Health:'Wellness & medicine', Politics:'Policy & world', Entertainment:'Movies, music, games'};
+  prefGrid.innerHTML = categories.map(c=>`
+    <button data-pref="${c}" class="pref-card text-left p-4 rounded-2xl border-2 ${selectedPrefs.has(c)?'border-zinc-900 bg-zinc-900 text-white':'border-zinc-200 bg-white'} hover:border-zinc-300 transition">
+      <div class="w-10 h-10 rounded-xl ${selectedPrefs.has(c)?'bg-white/20':'bg-zinc-100'} flex items-center justify-center mb-3"><i class="fa-solid ${catIcons[c]}"></i></div>
+      <div class="font-semibold">${c}</div>
+      <div class="text-xs opacity-60 mt-1">${catDesc[c]}</div>
+    </button>
+  `).join('');
+  attachPrefHandlers();
+  updateInterestTags();
+}
+
+function attachPrefHandlers(){
+  document.querySelectorAll('[data-pref]').forEach(b=>{
+    b.onclick=()=>{
+      const c=b.dataset.pref;
+      if(selectedPrefs.has(c)) selectedPrefs.delete(c); else selectedPrefs.add(c);
+      b.className = `pref-card text-left p-4 rounded-2xl border-2 ${selectedPrefs.has(c)?'border-zinc-900 bg-zinc-900 text-white':'border-zinc-200 bg-white'} hover:border-zinc-300 transition`;
+      b.querySelector('div').className = `w-10 h-10 rounded-xl ${selectedPrefs.has(c)?'bg-white/20':'bg-zinc-100'} flex items-center justify-center mb-3`;
+    }
+  })
+}
+
+function selectCategory(cat, btn){
+  if(currentCategory===cat){ currentCategory='All'; document.querySelectorAll('.chip').forEach(c=>{ if(c.dataset.cat==='All') c.className='chip whitespace-nowrap px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-medium'; else c.className='chip whitespace-nowrap px-4 py-2 rounded-full bg-white border border-zinc-200 text-sm font-medium hover:bg-zinc-50'; });}
+  else { currentCategory=cat; document.querySelectorAll('.chip').forEach(c=>{ c.className='chip whitespace-nowrap px-4 py-2 rounded-full bg-white border border-zinc-200 text-sm font-medium hover:bg-zinc-50'; }); if(btn) btn.className='chip whitespace-nowrap px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-medium'; document.querySelector('[data-cat="All"]').className='chip whitespace-nowrap px-4 py-2 rounded-full bg-white border border-zinc-200 text-sm font-medium hover:bg-zinc-50'; if(cat==='All') document.querySelector('[data-cat="All"]').className='chip whitespace-nowrap px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-medium';}
+  loadFeed();
+}
+
+document.querySelector('[data-cat="All"]').onclick=()=> selectCategory('All', document.querySelector('[data-cat="All"]'));
+
+async function fetchUser(){
+  const res = await fetch(`/api/preferences?user_id=${USER_ID}`); const data=await res.json();
+  userState = data;
+  selectedPrefs = new Set(Object.keys(data.preferences||{}));
+  localStorage.setItem('prefs', JSON.stringify([...selectedPrefs]));
+  updateInterestTags(); updateStats(); updateBookmarkCount();
+  // sync prefGrid selection if exists
+  document.querySelectorAll('[data-pref]').forEach(b=>{
+    const c=b.dataset.pref;
+    b.className = `pref-card text-left p-4 rounded-2xl border-2 ${selectedPrefs.has(c)?'border-zinc-900 bg-zinc-900 text-white':'border-zinc-200 bg-white'} hover:border-zinc-300 transition`;
+  });
+}
+
+function updateInterestTags(){
+  const c = document.getElementById('interestTags');
+  if(selectedPrefs.size===0){ c.innerHTML='<span class="text-sm text-zinc-500">No interests yet — tap Manage</span>'; document.getElementById('bannerText').textContent='Select interests and interact with articles — our AI learns what you love in real-time.'; document.getElementById('accuracyBadge').style.display='none';}
+  else { c.innerHTML=[...selectedPrefs].map(p=>`<span class="px-3 py-1.5 rounded-full ${catColors[p]} text-sm font-medium"><i class="fa-solid ${catIcons[p]} mr-1"></i>${p}</span>`).join(''); document.getElementById('bannerText').textContent=`Personalized for: ${[...selectedPrefs].join(' • ')} — like & save to improve.`; document.getElementById('accuracyBadge').style.display='flex'; document.getElementById('accuracyText').textContent=`${selectedPrefs.size} interests • ${userState.liked.length} likes`; }
+}
+
+function updateStats(){
+  document.getElementById('statLiked').textContent=userState.liked.length;
+  document.getElementById('statBookmarked').textContent=userState.bookmarked.length;
+  document.getElementById('statRead').textContent=userState.history.length;
+}
+function updateBookmarkCount(){
+  const el=document.getElementById('bookmarkCount');
+  if(userState.bookmarked.length>0){ el.textContent=userState.bookmarked.length; el.classList.remove('hidden'); } else el.classList.add('hidden');
+}
+
+function timeAgo(iso){
+  const d=new Date(iso); const diff=(Date.now()-d.getTime())/1000;
+  if(diff<60) return 'just now';
+  if(diff<3600) return Math.floor(diff/60)+'m ago';
+  if(diff<86400) return Math.floor(diff/3600)+'h ago';
+  return Math.floor(diff/86400)+'d ago';
+}
+
+function articleCard(a, idx){
+  const isLiked=userState.liked.includes(a.id);
+  const isBookmarked=userState.bookmarked.includes(a.id);
+  const reason=a.reason||a.category;
+  const scorePercent = a.recommendation_score ? Math.round(a.recommendation_score*100) : null;
+  const liveBadge = a.isLive ? `<span class="px-2 py-1 rounded-full bg-red-500 text-white text-xs font-bold animate-pulse">● LIVE</span>` : ``;
+  return `
+  <article class="group bg-white rounded-2xl border border-zinc-200 overflow-hidden hover:shadow-lg transition cursor-pointer" onclick="openDrawer(${a.id})">
+    <div class="relative h-48 overflow-hidden">
+      <img src="${a.image}" alt="" class="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500" loading="lazy">
+      <div class="absolute top-3 left-3 flex items-center gap-2 flex-wrap">
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${catColors[a.category]||'bg-zinc-900 text-white'} shadow">${a.category}</span>
+        ${liveBadge}
+        ${scorePercent?`<span class="px-2 py-1 rounded-full bg-white/90 backdrop-blur text-xs font-semibold border">${scorePercent}% match • ${reason}</span>`: `<span class="px-2 py-1 rounded-full bg-white/90 backdrop-blur text-xs font-medium border">${reason}</span>`}
+      </div>
+      <button onclick="event.stopPropagation(); toggleBookmark(${a.id})" class="absolute top-3 right-3 w-8 h-8 rounded-full ${isBookmarked?'bg-amber-400 text-zinc-900':'bg-white/90 backdrop-blur text-zinc-700'} flex items-center justify-center shadow hover:scale-110 transition"><i class="${isBookmarked?'fa-solid':'fa-regular'} fa-bookmark text-sm"></i></button>
+      <div class="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-black/50 to-transparent"></div>
+      <div class="absolute bottom-3 left-3 right-3 flex items-center gap-2 text-xs text-white/90">
+        <span class="flex items-center gap-1"><i class="fa-regular fa-clock"></i> ${a.readTime} min</span>
+        <span>•</span><span>${timeAgo(a.publishedAt)}</span>
+        <span>•</span><span>${a.source}</span>
+      </div>
+    </div>
+    <div class="p-4">
+      <h3 class="font-bold leading-tight line-clamp-2 text-[16px] group-hover:text-violet-700 transition">${a.title}</h3>
+      <p class="text-sm text-zinc-500 line-clamp-2 mt-1.5">${a.content}</p>
+      <div class="mt-3 flex items-center justify-between">
+        <span class="text-xs text-zinc-500">${a.author}</span>
+        <div class="flex items-center gap-1">
+          <button onclick="event.stopPropagation(); interact(${a.id},'like')" class="w-8 h-8 rounded-full ${isLiked?'bg-rose-500 text-white':'bg-zinc-100 hover:bg-zinc-200'} flex items-center justify-center transition"><i class="${isLiked?'fa-solid':'fa-regular'} fa-heart text-sm"></i></button>
+          <button onclick="event.stopPropagation(); interact(${a.id},'dislike')" class="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center"><i class="fa-regular fa-thumbs-down text-sm"></i></button>
+          <button onclick="event.stopPropagation(); openDrawer(${a.id})" class="px-3 py-1.5 rounded-full bg-zinc-900 text-white text-xs font-semibold">Read</button>
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+
+async function loadFeed(){
+  articlesGrid.innerHTML = Array(6).fill(0).map(()=>`<div class="bg-white rounded-2xl border border-zinc-200 overflow-hidden animate-pulse"><div class="h-48 bg-zinc-100"></div><div class="p-4 space-y-3"><div class="h-4 bg-zinc-100 rounded"></div><div class="h-3 bg-zinc-100 rounded w-3/4"></div></div></div>`).join('');
+  document.getElementById('emptyState').classList.add('hidden');
+  let url;
+  let feedTitle = document.getElementById('feedTitle');
+  let forYouInfo = document.getElementById('forYouInfo');
+  const indiaBar = document.getElementById('indiaBar');
+  // toggle india bar
+  if(currentTab==='india') indiaBar.classList.remove('hidden'); else indiaBar.classList.add('hidden');
+  try{
+    if(currentTab==='india'){
+      feedTitle.textContent='India Live';
+      forYouInfo.classList.remove('hidden');
+      // Show live freshness
+      document.getElementById('forYouReason').textContent = 'Real-time RSS • Auto-refresh 5m';
+      // personalized live if sort=recommended, else raw live
+      let endpoint = currentSort==='recommended' ? `/api/india-recommend?user_id=${USER_ID}&n=20` : `/api/india-live?category=${encodeURIComponent(currentCategory)}&search=${encodeURIComponent(currentSearch)}`;
+      // For recommended we still need to apply filters client-side
+      const res=await fetch(endpoint);
+      let data=await res.json();
+      if(currentSort==='recommended'){
+        if(currentCategory!=='All') data=data.filter(a=>a.category===currentCategory);
+        if(currentSearch) {const q=currentSearch.toLowerCase(); data=data.filter(a=> (a.title+a.content+a.category).toLowerCase().includes(q) );}
+      }
+      if(currentSort==='popular') data.sort((a,b)=>b.popularity-a.popularity);
+      if(currentSort==='latest') data.sort((a,b)=> new Date(b.publishedAt)-new Date(a.publishedAt));
+      allArticles=data;
+      renderArticles(data);
+      document.getElementById('resultCount').textContent=`${data.length} live • ${new Date().toLocaleTimeString()}`;
+      document.getElementById('indiaCount').textContent=`${data.length} articles`;
+      document.getElementById('indiaUpdated').textContent=`Updated ${new Date().toLocaleTimeString()} • ${currentSort==='recommended'?'Personalized':currentSort}`;
+    } else if(currentTab==='foryou'){
+      feedTitle.textContent='For you';
+      forYouInfo.classList.remove('hidden');
+      if(currentSort==='recommended'){
+        const res=await fetch(`/api/recommend?user_id=${USER_ID}&n=20`);
+        let data=await res.json();
+        // apply client filters
+        if(currentCategory!=='All') data=data.filter(a=>a.category===currentCategory);
+        if(currentSearch) {const q=currentSearch.toLowerCase(); data=data.filter(a=> (a.title+a.content+a.category).toLowerCase().includes(q) );}
+        if(currentSort==='popular') data.sort((a,b)=>b.popularity-a.popularity);
+        if(currentSort==='latest') data.sort((a,b)=> new Date(b.publishedAt)-new Date(a.publishedAt));
+        allArticles=data;
+        renderArticles(data);
+        document.getElementById('resultCount').textContent=`${data.length} personalized results`;
+        document.getElementById('forYouReason').textContent = selectedPrefs.size? `based on ${[...selectedPrefs].slice(0,2).join(', ')}` : 'trending & fresh';
+      } else {
+        // latest/popular but still personalized order fallback to news
+        const res=await fetch(`/api/news?category=${encodeURIComponent(currentCategory)}&search=${encodeURIComponent(currentSearch)}&sort=${currentSort}`);
+        const data=await res.json(); allArticles=data; renderArticles(data);
+        document.getElementById('resultCount').textContent=`${data.length} articles`;
+      }
+    } else if(currentTab==='explore'){
+      feedTitle.textContent='Explore';
+      forYouInfo.classList.add('hidden');
+      const res=await fetch(`/api/news?category=${encodeURIComponent(currentCategory)}&search=${encodeURIComponent(currentSearch)}&sort=${currentSort==='recommended'?'latest':currentSort}`);
+      const data=await res.json(); allArticles=data; renderArticles(data); document.getElementById('resultCount').textContent=`${data.length} articles`;
+    } else if(currentTab==='trending'){
+      feedTitle.textContent='Trending';
+      forYouInfo.classList.add('hidden');
+      const res=await fetch('/api/trending'); let data=await res.json();
+      if(currentCategory!=='All') data=data.filter(a=>a.category===currentCategory);
+      if(currentSearch){const q=currentSearch.toLowerCase(); data=data.filter(a=> (a.title+a.content).toLowerCase().includes(q));}
+      allArticles=data; renderArticles(data); document.getElementById('resultCount').textContent=`${data.length} trending`;
+    } else if(currentTab==='bookmarks'){
+      feedTitle.textContent='Bookmarks';
+      forYouInfo.classList.add('hidden');
+      // fetch all then filter
+      const res=await fetch(`/api/news?category=All&search=&sort=latest`); let data=await res.json();
+      data=data.filter(a=> userState.bookmarked.includes(a.id));
+      if(currentCategory!=='All') data=data.filter(a=>a.category===currentCategory);
+      if(currentSearch){const q=currentSearch.toLowerCase(); data=data.filter(a=> (a.title+a.content).toLowerCase().includes(q));}
+      allArticles=data; renderArticles(data); document.getElementById('resultCount').textContent=`${data.length} saved`;
+    }
+  } catch(e){ console.error(e); articlesGrid.innerHTML='<div class="col-span-2 text-center py-10 text-zinc-500">Failed to load feed</div>'; }
+}
+
+function renderArticles(list){
+  if(!list.length){ articlesGrid.innerHTML=''; document.getElementById('emptyState').classList.remove('hidden'); return; }
+  articlesGrid.innerHTML = list.map((a,i)=>articleCard(a,i)).join('');
+}
+
+async function loadTrending(){
+  const res=await fetch('/api/trending'); const data=await res.json();
+  trendingList.innerHTML = data.map((a,i)=>`
+    <a href="#" onclick="event.preventDefault(); openDrawer(${a.id})" class="flex gap-3 group">
+      <span class="font-black text-2xl text-zinc-200 leading-none">${String(i+1).padStart(2,'0')}</span>
+      <div class="flex-1 min-w-0">
+        <div class="text-xs font-bold ${catColors[a.category].split(' ')[1]}">${a.category} • ${a.popularity} pts</div>
+        <div class="text-sm font-semibold leading-tight group-hover:text-violet-600 line-clamp-2">${a.title}</div>
+        <div class="text-xs text-zinc-500 mt-0.5">${timeAgo(a.publishedAt)} • ${a.source}</div>
+      </div>
+      <img src="${a.image}" class="w-16 h-16 rounded-xl object-cover flex-shrink-0">
+    </a>
+  `).join('');
+}
+
+async function interact(id, action){
+  const res=await fetch('/api/interact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:USER_ID, article_id:id, action})});
+  const data=await res.json(); if(data.user) userState=data.user;
+  updateStats(); updateBookmarkCount(); updateInterestTags();
+  showToast(action==='like'?'Added to your taste profile ❤️': action==='dislike'?'We\'ll show less like this':'Saved');
+  if(currentTab==='foryou' && currentSort==='recommended') loadFeed(); else renderArticles(allArticles); // re-render to update icons
+}
+async function toggleBookmark(id){
+  const isBookmarked=userState.bookmarked.includes(id);
+  await interact(id, isBookmarked?'unbookmark':'bookmark');
+  if(currentTab==='bookmarks') loadFeed();
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),1800);
+}
+
+// Drawer
+function openDrawer(id){
+  const a = allArticles.find(x=>x.id===id) || window._lastDrawerArticle;
+  // if not found, fetch from API via search
+  let article = a;
+  if(!article || article.id!==id){
+    // try to find globally: quick fetch all
+    fetch(`/api/news?search=&category=All`).then(r=>r.json()).then(list=>{
+      const found=list.find(x=>x.id===id);
+      if(found) showDrawer(found);
+    });
+    return;
+  }
+  showDrawer(article);
+  // record view
+  fetch('/api/interact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:USER_ID, article_id:id, action:'view'})}).then(r=>r.json()).then(d=>{ if(d.user) {userState=d.user; updateStats();}});
+}
+function showDrawer(a){
+  window._lastDrawerArticle=a;
+  const isLiked=userState.liked.includes(a.id);
+  const isBookmarked=userState.bookmarked.includes(a.id);
+  const liveLink = a.isLive && a.url ? `<a href="${a.url}" target="_blank" class="inline-flex items-center gap-2 mt-3 text-sm font-bold text-violet-600 hover:underline"><i class="fa-solid fa-up-right-from-square"></i> Read original on ${a.source} →</a>` : ``;
+  document.getElementById('drawerContent').innerHTML=`
+    <div class="h-72 relative">
+      <img src="${a.image}" class="w-full h-full object-cover">
+      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+      <button onclick="closeDrawer()" class="absolute top-4 left-4 w-9 h-9 rounded-full bg-white flex items-center justify-center shadow"><i class="fa-solid fa-arrow-left"></i></button>
+      <button onclick="toggleBookmark(${a.id}); setTimeout(()=>showDrawer(window._lastDrawerArticle),100)" class="absolute top-4 right-4 w-9 h-9 rounded-full ${isBookmarked?'bg-amber-400':'bg-white'} flex items-center justify-center shadow"><i class="${isBookmarked?'fa-solid':'fa-regular'} fa-bookmark"></i></button>
+      <div class="absolute bottom-4 left-6 right-6 text-white">
+        <span class="px-2.5 py-1 rounded-full ${catColors[a.category]} text-xs font-bold">${a.category}</span>
+        ${a.isLive?`<span class="ml-2 px-2 py-1 rounded-full bg-red-500 text-white text-xs font-bold">● LIVE • India</span>`:``}
+        <h2 class="font-serif font-black text-2xl leading-tight mt-2">${a.title}</h2>
+        <div class="text-sm text-white/80 mt-2 flex items-center gap-2 flex-wrap">${a.author} • ${a.source} • ${timeAgo(a.publishedAt)} • ${a.readTime} min read ${a.recommendation_score?`• <span class="bg-white text-zinc-900 px-2 py-0.5 rounded-full text-xs font-bold">${Math.round(a.recommendation_score*100)}% match</span>`:''}</div>
+      </div>
+    </div>
+    <div class="p-6">
+      ${a.reason?`<div class="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 rounded-full text-xs font-semibold mb-4"><i class="fa-solid fa-sparkles"></i> ${a.reason}</div>`:''}
+      <p class="text-zinc-700 leading-relaxed">${a.content}</p>
+      ${liveLink}
+      <p class="text-zinc-700 leading-relaxed mt-4">${a.isLive ? `This is a <b>real-time India Live</b> article fetched via RSS from Google News / TOI / NDTV / The Hindu. Personalized ranking uses your TF-IDF profile (like For You) applied to live titles.` : `Our AI recommendation engine analyzed this article's semantic content and matched it to your profile using TF-IDF vectorization and cosine similarity, blended with your category preferences and recency signals.`}</p>
+      <div class="mt-6 flex gap-2">
+        <button onclick="interact(${a.id},'like'); setTimeout(()=>showDrawer(window._lastDrawerArticle),200)" class="flex-1 py-3 rounded-full ${isLiked?'bg-rose-500 text-white':'bg-zinc-900 text-white'} font-semibold"><i class="fa-${isLiked?'solid':'regular'} fa-heart mr-2"></i>${isLiked?'Liked':'Like'}</button>
+        <button onclick="toggleBookmark(${a.id}); setTimeout(()=>showDrawer(window._lastDrawerArticle),200)" class="flex-1 py-3 rounded-full bg-white border border-zinc-200 font-semibold"><i class="${isBookmarked?'fa-solid':'fa-regular'} fa-bookmark mr-2"></i>${isBookmarked?'Saved':'Save'}</button>
+        <button onclick="interact(${a.id},'dislike'); showToast('We\\'ll show less like this'); closeDrawer(); loadFeed()" class="px-4 py-3 rounded-full bg-zinc-100"><i class="fa-regular fa-thumbs-down"></i></button>
+      </div>
+      ${a.url ? `<a href="${a.url}" target="_blank" class="mt-3 w-full inline-flex justify-center items-center gap-2 py-3 rounded-full border-2 border-zinc-900 font-semibold hover:bg-zinc-50"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open source article</a>` : ``}
+      <div class="mt-8 p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
+        <div class="text-sm font-semibold">Why was this recommended?</div>
+        <div class="text-sm text-zinc-600 mt-1">Content similarity: ${(a.similarity||0).toString()} • Category: ${a.category} • Popularity: ${a.popularity}/100 • Published ${timeAgo(a.publishedAt)} ${a.isLive?'• LIVE RSS':''}</div>
+        <div class="w-full bg-zinc-200 rounded-full h-2 mt-3 overflow-hidden"><div class="h-full bg-zinc-900" style="width:${Math.round((a.recommendation_score||0.5)*100)}%"></div></div>
+      </div>
+    </div>
+  `;
+  document.getElementById('drawer').classList.remove('hidden'); document.body.style.overflow='hidden';
+}
+function closeDrawer(){ document.getElementById('drawer').classList.add('hidden'); document.body.style.overflow=''; }
+document.getElementById('drawerBackdrop').onclick=closeDrawer;
+
+// Modal
+function openModal(){ document.getElementById('prefModal').classList.remove('hidden'); }
+function closeModal(){ document.getElementById('prefModal').classList.add('hidden'); }
+document.getElementById('personalizeBtn').onclick=openModal;
+document.getElementById('editPrefsBtn').onclick=openModal;
+document.getElementById('manageInterestsBtn').onclick=openModal;
+document.getElementById('closeModal').onclick=closeModal;
+document.getElementById('modalBackdrop').onclick=closeModal;
+document.getElementById('skipPrefs').onclick=closeModal;
+document.getElementById('savePrefs').onclick=async()=>{
+  localStorage.setItem('prefs', JSON.stringify([...selectedPrefs]));
+  await fetch(`/api/preferences?user_id=${USER_ID}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({categories:[...selectedPrefs]})});
+  await fetchUser();
+  closeModal(); loadFeed(); showToast('Feed personalized ✨');
+};
+
+document.getElementById('clearHistoryBtn').onclick=async()=>{
+  userState.history=[]; userState.liked=[]; userState.disliked=[];
+  // hack: reset server side by creating new user id
+  // Instead just clear via interactions? We'll just reload with new ID
+  localStorage.removeItem('prefs'); selectedPrefs.clear();
+  await fetch(`/api/preferences?user_id=${USER_ID}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({categories:[]})});
+  // clear likes/dislikes by client reset - need server reset: re-create recommender user
+  // simplest: use new user id
+  const newId='user_'+Math.random().toString(36).slice(2,9);
+  localStorage.setItem('news_user_id', newId);
+  location.reload();
+};
+
+// Tabs
+document.querySelectorAll('.nav-tab, .nav-tab-mobile').forEach(btn=>{
+  btn.onclick=()=>{
+    const tab=btn.dataset.tab;
+    currentTab=tab;
+    document.querySelectorAll('.nav-tab').forEach(b=> b.className= b.dataset.tab===tab ? 'nav-tab px-3 py-2 rounded-full bg-zinc-900 text-white' : 'nav-tab px-3 py-2 rounded-full hover:bg-zinc-100');
+    document.querySelectorAll('.nav-tab-mobile').forEach(b=> b.className= b.dataset.tab===tab ? 'nav-tab-mobile whitespace-nowrap px-4 py-1.5 rounded-full bg-zinc-900 text-white text-sm font-medium' : 'nav-tab-mobile whitespace-nowrap px-4 py-1.5 rounded-full bg-zinc-100 text-sm font-medium');
+    loadFeed();
+  }
+});
+
+searchInput.addEventListener('input', e=>{currentSearch=e.target.value; searchInputMobile.value=e.target.value; clearTimeout(window._s); window._s=setTimeout(loadFeed,300)});
+searchInputMobile.addEventListener('input', e=>{currentSearch=e.target.value; searchInput.value=e.target.value; clearTimeout(window._s); window._s=setTimeout(loadFeed,300)});
+document.getElementById('sortSelect').addEventListener('change', e=>{currentSort=e.target.value; loadFeed()});
+
+document.getElementById('refreshIndiaBtn')?.addEventListener('click', async()=>{
+  if(currentTab!=='india') { currentTab='india'; document.querySelectorAll('.nav-tab').forEach(b=> b.className= b.dataset.tab==='india' ? 'nav-tab px-3 py-2 rounded-full bg-zinc-900 text-white relative' : 'nav-tab px-3 py-2 rounded-full hover:bg-zinc-100'); }
+  showToast('Refreshing India Live...');
+  // force fetch
+  await fetch('/api/india-live?force=1');
+  await loadFeed();
+});
+
+// Auto-refresh India every 5 min
+setInterval(()=>{ if(currentTab==='india') loadFeed(); }, 300000);
+
+(async()=>{
+  await fetchCategories();
+  await fetchUser();
+  await loadTrending();
+  await loadFeed();
+  if(selectedPrefs.size===0){
+    setTimeout(openModal, 800);
+  }
+})();
+</script>
+</body>
+</html>
