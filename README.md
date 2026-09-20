@@ -51,4 +51,3 @@ Data is in-memory (resets on restart). User ID stored in `localStorage`.
 
 ## 🎨 UI
 Tailwind CDN, Inter + Merriweather fonts, card grid, shimmer skeletons, drawer, toast, modals. No build step.
-
